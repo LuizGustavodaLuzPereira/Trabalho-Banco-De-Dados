@@ -1,0 +1,209 @@
+-- =====================================================
+-- ATIVIDADE BANCO DE DADOS - SISTEMA DE ESTOQUE
+-- =====================================================
+
+CREATE DATABASE ecommerce;
+USE ecommerce;
+
+-- =====================================================
+-- Criação das Tabelas
+-- =====================================================
+
+CREATE TABLE clientes (
+    id_cliente INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE,
+    data_cadastro DATE DEFAULT (CURRENT_DATE)
+);
+
+CREATE TABLE produtos (
+    id_produto INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    preco DECIMAL(10,2) NOT NULL,
+    estoque INT DEFAULT 0
+);
+
+CREATE TABLE pedidos (
+    id_pedido INT AUTO_INCREMENT PRIMARY KEY,
+    id_cliente INT,
+    id_produto INT,
+    quantidade INT NOT NULL,
+    valor_total DECIMAL(10,2),
+    data_pedido DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (id_cliente)
+        REFERENCES clientes(id_cliente),
+
+    FOREIGN KEY (id_produto)
+        REFERENCES produtos(id_produto)
+);
+
+-- =====================================================
+-- Inserção de Dados
+-- =====================================================
+
+INSERT INTO clientes(nome,email) VALUES
+('Ana Souza','ana@email.com'),
+('Bruno Lima','bruno@email.com'),
+('Carlos Silva','carlos@email.com'),
+('Daniela Costa','daniela@email.com'),
+('Eduardo Santos','eduardo@email.com');
+
+INSERT INTO produtos(nome,preco,estoque) VALUES
+('Notebook',3500.00,20),
+('Mouse Gamer',150.00,50),
+('Teclado Mecânico',300.00,30),
+('Monitor 24',1200.00,15),
+('Headset',250.00,40);
+
+INSERT INTO pedidos(id_cliente,id_produto,quantidade,valor_total) VALUES
+(1,1,1,3500.00),
+(2,2,2,300.00),
+(3,3,1,300.00),
+(4,4,1,1200.00),
+(5,5,2,500.00);
+
+-- =====================================================
+-- Update (preços)
+-- =====================================================
+
+UPDATE produtos
+SET preco = 180.00
+WHERE id_produto = 2;
+
+-- =====================================================
+-- DELETE (preços)
+-- =====================================================
+
+DELETE FROM pedidos
+WHERE id_pedido = 5;
+
+-- =====================================================
+-- Consulta de dados
+-- =====================================================
+
+-- WHERE
+SELECT *
+FROM produtos
+WHERE estoque > 20;
+
+-- LIKE
+SELECT *
+FROM clientes
+WHERE nome LIKE '%Silva%';
+
+-- BETWEEN
+SELECT *
+FROM produtos
+WHERE preco BETWEEN 200 AND 1500;
+
+-- ORDER BY
+SELECT *
+FROM produtos
+ORDER BY preco DESC;
+
+-- FUNÇÕES
+SELECT COUNT(*) AS total_clientes
+FROM clientes;
+
+SELECT SUM(valor_total) AS faturamento
+FROM pedidos;
+
+SELECT AVG(preco) AS media_precos
+FROM produtos;
+
+-- RELATÓRIO COM JOIN
+SELECT
+    p.id_pedido,
+    c.nome AS cliente,
+    pr.nome AS produto,
+    p.quantidade,
+    p.valor_total,
+    p.data_pedido
+FROM pedidos p
+INNER JOIN clientes c
+ON p.id_cliente = c.id_cliente
+INNER JOIN produtos pr
+ON p.id_produto = pr.id_produto;
+
+-- =====================================================
+-- Triger
+-- Reduzir o Estoque
+-- =====================================================
+
+DELIMITER $$
+
+CREATE TRIGGER trg_baixa_estoque
+AFTER INSERT ON pedidos
+FOR EACH ROW
+BEGIN
+    UPDATE produtos
+    SET estoque = estoque - NEW.quantidade
+    WHERE id_produto = NEW.id_produto;
+END $$
+
+DELIMITER ;
+
+-- TESTE DA TRIGGER
+
+INSERT INTO pedidos(id_cliente,id_produto,quantidade,valor_total)
+VALUES (1,2,3,540.00);
+
+-- =====================================================
+-- 
+-- =====================================================
+
+DELIMITER $$
+
+CREATE PROCEDURE VerificarClienteVIP(
+    IN p_cliente INT
+)
+BEGIN
+
+    DECLARE total_compras DECIMAL(10,2);
+
+    SELECT IFNULL(SUM(valor_total),0)
+    INTO total_compras
+    FROM pedidos
+    WHERE id_cliente = p_cliente;
+
+    IF total_compras > 500 THEN
+        SELECT
+            total_compras AS Total_Gasto,
+            'CLIENTE VIP' AS Status_Cliente;
+    ELSE
+        SELECT
+            total_compras AS Total_Gasto,
+            'CLIENTE NORMAL' AS Status_Cliente;
+    END IF;
+
+END $$
+
+DELIMITER ;
+
+-- EXECUTAR PROCEDURE
+CALL VerificarClienteVIP(1);
+
+-- =====================================================
+-- Indice
+-- =====================================================
+
+CREATE INDEX idx_cliente_pedido
+ON pedidos(id_cliente);
+
+-- =====================================================
+-- SEGURANÇA (Usuario)
+-- =====================================================
+
+CREATE USER 'funcionario'@'localhost'
+IDENTIFIED BY 'Senha123';
+
+GRANT SELECT, INSERT, UPDATE
+ON ecommerce.*
+TO 'funcionario'@'localhost';
+
+FLUSH PRIVILEGES;
+
+-- =====================================================
+-- FIM 
+-- =====================================================
